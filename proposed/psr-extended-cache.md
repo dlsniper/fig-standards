@@ -1,23 +1,29 @@
-Common Interface for Caching libraries
+Common Extended Interfaces for Caching libraries
 ====================================
 
-## Proposed extended implementation
+1. Specification
+-----------------
+
+### 1.1 Proposed extended implementation
 
 This documents adds missing interfaces from the original cache proposal
 allowing for more functionality that originaly specified.
 
-### CacheItemInterface
+2. Interfaces
+----------
+
+### 2.1 AdvancedItemInterface
 
 ```php
 
 <?php
 
-namespace PSR\Cache\Item;
+namespace Psr\Cache;
 
 /**
  * Interface for caching object
  */
-interface AdvancedCacheItemInterface extends CacheItemInterface
+interface AdvancedItemInterface extends ItemInterface
 {
     /**
      * Get the namespace of the cache item
@@ -31,7 +37,7 @@ interface AdvancedCacheItemInterface extends CacheItemInterface
      *
      * @param string $namespace
      *
-     * @return CacheItemInterface
+     * @return ItemInterface
      */
     public function setNamespace($namespace);
 
@@ -47,7 +53,7 @@ interface AdvancedCacheItemInterface extends CacheItemInterface
      *
      * @param array $tags
      *
-     * @return CacheItemInterface
+     * @return ItemInterface
      */
     public function setTags(array $tags);
 
@@ -55,13 +61,13 @@ interface AdvancedCacheItemInterface extends CacheItemInterface
 
 ```
 
-### AdvancedDriverInterface
+### 2.2 AdvancedDriverInterface
 
 ```php
 
 <?php
 
-namespace PSR\Cache\Driver;
+namespace Psr\Cache;
 
 /**
  * Interface for advanced cache drivers
@@ -145,15 +151,15 @@ interface AdvancedDriverInterface extends DriverInterface
 
 ```
 
-### AdvancedCacheProxyInterface
+### 2.3 AdvancedCacheProxyInterface
 
 ```php
 
 <?php
 
-namespace PSR\Cache;
+namespace Psr\Cache;
 
-use PSR\Cache\Item\AdvancedCacheItemInterface;
+use Psr\Cache\AdvancedItemInterface;
 
 /**
  * This is our advanced cache proxy
@@ -163,28 +169,28 @@ class AdvancedCacheProxyInterface
     /**
      * Lock a certain entry for the specified amount of time.
      *
-     * @param CacheItemInterface $item
-     * @param int                $lifeTime Life time of the cache entry
+     * @param ItemInterface $item
+     * @param int           $lifeTime Life time of the cache entry
      *
      * @return boolean Result of the operation
      */
-    public function lock(CacheItemInterface $item, $lifeTime = 0);
+    public function lock(ItemInterface $item, $lifeTime = 0);
 
     /**
      * Unlock the specified entry
      *
-     * @param CacheItemInterface $item
+     * @param ItemInterface $item
      *
      * @return boolean Result of the operation
      */
-    public function unlock(CacheItemInterface $item);
+    public function unlock(ItemInterface $item);
 
     /**
      * Get items that match the specified tag
      *
      * @param string $tag Tag name
      *
-     * @return AdvancedCacheItemInterface[]
+     * @return AdvancedItemInterface[]
      */
     public function getByTag($tag);
 
@@ -195,7 +201,7 @@ class AdvancedCacheProxyInterface
      *
      * @param string[] $tags
      *
-     * @return AdvancedCacheItemInterface[]
+     * @return AdvancedItemInterface[]
      */
     public function getByTags($tags, $mustHaveAll = true);
 
@@ -220,7 +226,7 @@ class AdvancedCacheProxyInterface
      *
      * @param string $namespace Namespace
      *
-     * @return AdvancedCacheItemInterface[]
+     * @return AdvancedItemInterface[]
      */
     public function getByNamespace($namespace, $includingChildren = false);
 
