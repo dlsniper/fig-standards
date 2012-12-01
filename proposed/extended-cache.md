@@ -137,7 +137,7 @@ interface AdvancedDriverInterface extends DriverInterface
      * If $includingChildren is set to true then the all the children from
      * the subnamespaces will be removed as well
      *
-     * @param string[] $tags
+     * @param string $namespace Namespace
      */
     public function removeByNamespace($namespace, $includingChildren = false);
 
@@ -229,7 +229,7 @@ class AdvancedCacheProxyInterface
      * If $includingChildren is set to true then the all the children from
      * the subnamespaces will be removed as well
      *
-     * @param string[] $tags
+     * @param string $namespace Namespace
      */
     public function removeByNamespace($namespace, $includingChildren = false);
 
