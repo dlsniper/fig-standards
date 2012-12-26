@@ -1,7 +1,7 @@
 Common Extended Interfaces for Caching libraries
 ====================================
 
-1. Specification
+1. Description
 -----------------
 
 ### 1.1 Proposed extended implementation
@@ -9,10 +9,68 @@ Common Extended Interfaces for Caching libraries
 This documents adds missing interfaces from the original cache proposal
 allowing for more functionality that originaly specified.
 
-2. Interfaces
+In order to cover multiple levels of implementation, each additional
+functionality is described in a separate interface.
+
+The ```AdvancedCacheProxy``` MUST emulate any missing functionality from the
+used cache driver in order to provide compatibility across implementations.
+
+2. Proposed extended implementation
+-----------------
+
+### 2.1 TaggableItemInterface
+
+This allows a use to tag a cache ```Item``` with additional metadata in order
+to facilitate various operations and usages such as: grouping items by labels,
+finding similar items based on labels, removing items based on said labels.
+
+### 2.2 NamespacedItemInterface
+
+This allows grouping a cache ```Item``` via a tree-like structure.
+
+An example of a namespace could be: ```/Store/Product/``` with an item stored
+as this: ```/Store/Product/ProductID```.
+
+### 2.3 LockableDriverInterface
+
+In order to facilitate the operations on cache items that need to have
+consistency while in high concurancy environments it is recommended to have a
+the items that are changed locked to modifications from other instances.
+
+A lock can be defined as:
+- read-only lock: this type of lock allows other intances to read the
+  information from the item while it is locked for writing.
+
+- read-write lock: this type of lock denies both reading or writing of the
+  item while it is locked.
+
+If the storage engine does not provide this functionality, then the
+```AdvancedCacheProxy``` MUST implement this using the available ```get```
+and ```set``` methods.
+
+### 2.4 NamespacedDriverInterface
+
+This interface facilitate operations with namespaces if the driver has support
+for them.
+
+### 2.5 TaggableDriverInterface
+
+This interface facilitate operations with tags if the driver has support for
+them.
+
+### 2.6 AdvancedCacheProxyInterface
+
+This MUST implement any and all missing functionality from the above defined
+interfaces.
+
+It acts like a proxy over the above methods unless the driver does not
+implement them natively where it should emulate them, just like the
+```CacheProxy``` will do.
+
+3. Interfaces
 ----------
 
-### 2.1 AdvancedItemInterface
+### 3.1 TaggableItemInterface
 
 ```php
 
@@ -21,26 +79,10 @@ allowing for more functionality that originaly specified.
 namespace Psr\Cache;
 
 /**
- * Interface for caching object
+ * CacheItem with tag support
  */
-interface AdvancedItemInterface extends ItemInterface
+interface TaggableItemInterface extends ItemInterface
 {
-    /**
-     * Get the namespace of the cache item
-     *
-     * @return string
-     */
-    public function getNamespace();
-
-    /**
-     * Set the namespace of the cache driver
-     *
-     * @param string $namespace
-     *
-     * @return ItemInterface
-     */
-    public function setNamespace($namespace);
-
     /**
      * Get the tags of an item
      *
@@ -61,7 +103,7 @@ interface AdvancedItemInterface extends ItemInterface
 
 ```
 
-### 2.2 AdvancedDriverInterface
+### 3.2 NamespacedItemInterface
 
 ```php
 
@@ -70,71 +112,108 @@ interface AdvancedItemInterface extends ItemInterface
 namespace Psr\Cache;
 
 /**
- * Interface for advanced cache drivers
+ * CacheItem with tag support
  */
-interface AdvancedDriverInterface extends DriverInterface
+interface NamespacedItemInterface extends ItemInterface
 {
     /**
-     * Lock a certain entry for the specified amount of time.
+     * Get the namespace of the cache item
+     *
+     * @return string
+     */
+    public function getNamespace();
+
+    /**
+     * Set the namespace of the cache driver
+     *
+     * @param string $namespace
+     *
+     * @return ItemInterface
+     */
+    public function setNamespace($namespace);
+
+}
+
+```
+
+### 3.3 LockableDriverInterface
+
+```php
+
+<?php
+
+namespace Psr\Cache;
+
+/**
+ * Lock support for cache driver
+ */
+interface LockableDriverInterface extends DriverInterface
+{
+    const READ_ONLY_LOCK = 1;
+    const READ_WRITE_LOCK = 2;
+
+    /**
+     * Lock a certain entry for the specified amount of time in microseconds
      *
      * @param string $item
-     * @param int    $lifeTime Life time of the cache entry
+     * @param int    $lifeTime
+     * @param int    $lockType
      *
-     * @return boolean Result of the operation
+     * @return Boolean
      */
-    public function lock($item, $lifeTime = 0);
+    public function lock($item, $lifeTime, $lockType = LockableDriverInterface::READ_ONLY_LOCK);
 
     /**
      * Unlock the specified entry
      *
      * @param string $item
      *
-     * @return boolean Result of the operation
+     * @return Boolean
      */
     public function unlock($item);
 
+}
+
+```
+
+### 3.4 NamespacedDriverInterface
+
+```php
+
+<?php
+
+namespace Psr\Cache;
+
+/**
+ * Namespace support for cache driver
+ */
+interface NamespacedDriverInterface extends DriverInterface
+{
     /**
-     * Get items that match the specified tag
+     * Set the namespace separator used by the cache driver
      *
-     * @param string $tag Tag name
+     * @param $separator
      *
-     * @return array
+     * @return NamespacedDriverInterface
      */
-    public function getByTag($tag);
+    public function setNamespaceSeparator($separator);
 
     /**
-     * Get items that match all the tags list.
-     * If the $mustHaveAll is set to false then any item matching
-     * any tag from the list will be returned
+     * Get the namespace separator used by the cache driver
      *
-     * @param string[] $tags
-     *
-     * @return array
+     * @return $string
      */
-    public function getByTags($tags, $mustHaveAll = true);
-
-    /**
-     * Remove all the items that match the specified tag
-     *
-     * @param string $tag
-     */
-    public function removeByTag($tag);
-
-    /**
-     * Remove items that match the specified tag
-     *
-     * @param string[] $tags
-     */
-    public function removeByTags($tags, $mustHaveAll = true);
+    public function getNamespaceSeparator();
 
     /**
      * Get items that match the specified namespace
      * If $includingChildren is set to true then the all the children from
      * the subnamespaces will be retrieved as well
      *
-     * @param string $namespace Namespace
+     * @param string  $namespace
+     * @param Boolean $includingChildren
      *
-     * @return array
+     * @return ItemInterface[]
      */
     public function getByNamespace($namespace, $includingChildren = false);
 
@@ -143,7 +222,8 @@ interface AdvancedDriverInterface extends DriverInterface
      * If $includingChildren is set to true then the all the children from
      * the subnamespaces will be removed as well
      *
-     * @param string $namespace Namespace
+     * @param string  $namespace
+     * @param Boolean $includingChildren
      */
     public function removeByNamespace($namespace, $includingChildren = false);
 
@@ -151,7 +231,7 @@ interface AdvancedDriverInterface extends DriverInterface
 
 ```
 
-### 2.3 AdvancedCacheProxyInterface
+### 3.5 TaggableDriverInterface
 
 ```php
 
@@ -159,38 +239,17 @@ interface AdvancedDriverInterface extends DriverInterface
 
 namespace Psr\Cache;
 
-use Psr\Cache\AdvancedItemInterface;
-
 /**
- * This is our advanced cache proxy
+ * Tag support for cache driver
  */
-class AdvancedCacheProxyInterface
+interface TaggableDriverInterface extends DriverInterface
 {
-    /**
-     * Lock a certain entry for the specified amount of time.
-     *
-     * @param ItemInterface $item
-     * @param int           $lifeTime Life time of the cache entry
-     *
-     * @return boolean Result of the operation
-     */
-    public function lock(ItemInterface $item, $lifeTime = 0);
-
-    /**
-     * Unlock the specified entry
-     *
-     * @param ItemInterface $item
-     *
-     * @return boolean Result of the operation
-     */
-    public function unlock(ItemInterface $item);
-
     /**
      * Get items that match the specified tag
      *
      * @param string $tag Tag name
      *
-     * @return AdvancedItemInterface[]
+     * @return ItemInterface[]
      */
     public function getByTag($tag);
 
@@ -200,15 +259,18 @@ class AdvancedCacheProxyInterface
      * any tag from the list will be returned
      *
      * @param string[] $tags
+     * @param Boolean  $mustHaveAll
      *
-     * @return AdvancedItemInterface[]
+     * @return ItemInterface[]
      */
-    public function getByTags($tags, $mustHaveAll = true);
+    public function getByTags(array $tags, $mustHaveAll = true);
 
     /**
      * Remove all the items that match the specified tag
      *
      * @param string $tag
+     *
+     * @param Boolean
      */
     public function removeByTag($tag);
 
@@ -216,17 +278,73 @@ class AdvancedCacheProxyInterface
      * Remove items that match the specified tag
      *
      * @param string[] $tags
+     * @param Boolean  $mustHaveAll
+     *
+     * @return Boolean[]
      */
-    public function removeByTags($tags, $mustHaveAll = true);
+    public function removeByTags(array $tags, $mustHaveAll = true);
+
+}
+
+```
+
+### 3.6 AdvancedCacheProxyInterface
+
+```php
+
+<?php
+
+namespace Psr\Cache;
+
+/**
+ * This proxy implements several method not found in CacheProxyInterface
+ */
+interface AdvancedCacheProxyInterface extends CacheProxyInterface
+{
+    /**
+     * Lock a certain entry for the specified amount of time in microseconds
+     *
+     * @param ItemInterface $item
+     * @param int           $lifeTime
+     *
+     * @return Boolean
+     */
+    public function lock(ItemInterface $item, $lifeTime);
+
+    /**
+     * Unlock the specified entry
+     *
+     * @param ItemInterface $item
+     *
+     * @return Boolean
+     */
+    public function unlock(ItemInterface $item);
+
+    /**
+     * Set the namespace separator used by the cache driver
+     *
+     * @param $separator
+     *
+     * @return AdvancedCacheProxyInterface
+     */
+    public function setNamespaceSeparator($separator);
+
+    /**
+     * Get the namespace separator used by the cache driver
+     *
+     * @return $string
+     */
+    public function getNamespaceSeparator();
 
     /**
      * Get items that match the specified namespace
      * If $includingChildren is set to true then the all the children from
      * the subnamespaces will be retrieved as well
      *
-     * @param string $namespace Namespace
+     * @param string  $namespace
+     * @param Boolean $includingChildren
      *
-     * @return AdvancedItemInterface[]
+     * @return ItemInterface[]
      */
     public function getByNamespace($namespace, $includingChildren = false);
 
@@ -235,9 +353,50 @@ class AdvancedCacheProxyInterface
      * If $includingChildren is set to true then the all the children from
      * the subnamespaces will be removed as well
      *
-     * @param string $namespace Namespace
+     * @param string  $namespace
+     * @param Boolean $includingChildren
      */
     public function removeByNamespace($namespace, $includingChildren = false);
+
+    /**
+     * Get items that match the specified tag
+     *
+     * @param string $tag Tag name
+     *
+     * @return ItemInterface[]
+     */
+    public function getByTag($tag);
+
+    /**
+     * Get items that match all the tags list.
+     * If the $mustHaveAll is set to false then any item matching
+     * any tag from the list will be returned
+     *
+     * @param string[] $tags
+     * @param Boolean  $mustHaveAll
+     *
+     * @return ItemInterface[]
+     */
+    public function getByTags(array $tags, $mustHaveAll = true);
+
+    /**
+     * Remove all the items that match the specified tag
+     *
+     * @param string $tag
+     *
+     * @param Boolean
+     */
+    public function removeByTag($tag);
+
+    /**
+     * Remove items that match the specified tag
+     *
+     * @param string[] $tags
+     * @param Boolean  $mustHaveAll
+     *
+     * @return Boolean[]
+     */
+    public function removeByTags(array $tags, $mustHaveAll = true);
 
 }
 
