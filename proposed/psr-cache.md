@@ -131,7 +131,7 @@ interface CacheInterface
      *
      * @param string $key
      *
-     * @return boolean
+     * @return Boolean
      */
     public function exists($key);
 
@@ -142,7 +142,7 @@ interface CacheInterface
      * @param mixed    $value
      * @param int|null $ttl
      *
-     * @return boolean Result of the operation
+     * @return Boolean Result of the operation
      */
     public function set($key, $value, $ttl = null);
 
@@ -151,7 +151,7 @@ interface CacheInterface
      *
      * @param string $key
      *
-     * @return boolean Result of the operation
+     * @return Boolean Result of the operation
      */
     public function remove($key);
 
@@ -169,7 +169,7 @@ interface CacheInterface
      *
      * @param string[] $keys
      *
-     * @return boolean[]
+     * @return Boolean[]
      */
     public function existsMultiple($keys);
 
