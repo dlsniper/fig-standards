@@ -2,8 +2,8 @@ Common Interface for Caching libraries
 ================
 
 
-This document describes a simple yet extensible interface for a cache item,
-a cache driver and a cache proxy.
+This document describes a simple yet extensible interface for a cache item and
+a cache driver.
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
 "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
@@ -13,17 +13,6 @@ The final implementations MAY be able to decorate the objects with more
 functionality that the one proposed but they MUST implement the indicated
 interfaces/functionality first.
 
-Also, since this involves caching, which is used to obtain better performance
-from systems, the implementation detail is RECOMMENDED to be as simple and
-fast as possible.
-
-For this reason, this document doesn't describe how tags, namespaces or
-locking problems are addressed as they are OPTIONAL and MAY be implemented by
-each vendor as it sees fit for the specific needs. One of the main reason is
-the lack of support into many existing, at time of this document creation,
-fast key/value storages as well as potential performance issues due to
-improper implementations.
-
 [RFC 2119]: http://tools.ietf.org/html/rfc2119
 
 1. Specification
@@ -31,97 +20,47 @@ improper implementations.
 
 ### 1.1 Quick description
 
-In order to save the user information into the cache driver, a simple cache
-item is implemented which facilitates the storing of any and all possible
+In order to save the user information into a cache system, a simple cache item
+is implemented which facilitates the storing of any and all possible
 information that a user might want to store.
 
-For this, the cache driver implementation MUST specify if it's able to handle
-native serialization of PHP objects or the cache proxy MUST implement / execute
-a serialization/deserialization of the cache item before saving/retrieving.
-
-The cache proxy MUST receive a cache driver which implements
-`Psr\Cache\DriverInterface` and must receive a `Psr\Cache\ItemInterface`
-in order to save it in to the cache driver.
+For this, the `Cache` implementation MUST be able to handle any values that
+a user could store, including and not limited to PHP objects, null values,
+boolean values and so on.
 
 All the `TTL` references in this document are defined as the number of seconds
-until the user of that value will be rendered invalid.
+until the item using it will be rendered invalid/expired/deleted from the
+caching system.
 
 ### 1.2 CacheItem
 
 By `CacheItem` we refer to a object that implements the
 `Psr\Cache\ItemInterface` interface.
 
-Using the cache item approach to save the user that we can guarantee that
-regardles of the driver implementation, the user MUST always be able to
-retrieve the same data he expects to retrieve / saved into the driver.
+By using the cache item implementations will guarantee consistency across
+various systems and ensure that the user will always retrieve the expected data
+without performing any additional operations.
 
-The item MUST store the user value as well as additional metadata for it.
+### 1.3 Cache
 
-The cache item should also contain a function that allows the user to retrieve
-the remaining TTL of the item in order to better coordinate with its expiry
-time. In order to provide this functionality, the `CacheItem` SHOULD store
-the timestamp for the save time of the item in the cache so that it can then
-compute the remaining TTL.
+By `Cache` we refer to a object that implements the `Psr\Cache\CacheInterface`
+interface.
 
-### 1.3 CacheDriver
+If the user doesn't provide a TTL value then the `Cache` MUST set a default
+value that is either configured by the user or, if not available, the maximum
+value allowed by cache system.
 
-By `CacheDriver` we refer to a object that implements the
-`Psr\Cache\DriverInterface` or `Psr\Cache\BatchDriverInterface` interface.
+It will be the implementation job to define what values are considered valid
+or invalid for the specific storage but the user MUST be aware of the accepted
+values by the underlying solution both for TTL values as well as for key names.
 
-A driver MUST to be decoupled from the proxy so that it only implements the
-basic operations described in either the `DriverInterface` or in
-`BatchDriverInterface` which extends the first one.
+`Cache` MUST return always a `CacheItem` when the item is found in the cache
+and `null` when the item is not found.
 
-It is the cache proxy that MUST serialize the information in the right way if
-the driver doesn't support for serialization.
-
-When saving the cache item the driver SHOULD perform the save operation only
-but other operations MAY be done such as logging / profiling. Other operation
-types are could be done as well but it is RECOMMENDED to keep the driver as
-simple as possible in order to it to be exchanged / used in other projects
-with ease.
-
-In case the driver does not implement `BatchDriverInterface` then the
-`CacheProxy` MUST implement the missing functionality so that the end-user has
-the same consistent behavior.
-
-A `CacheDriver` implementation MUST implement the `BatchDriverInterface` in
-order to provide the same level of operations between driver implementations.
-
-### 1.4 CacheProxy
-
-By `CacheProxy` we refer to a object that implements the
-`Psr\Cache\CacheProxyInterface` interface.
-
-The `CacheProxy` MUST provide the functionality to perform the whole range of
-operations described in the `DriverInterface` as well as those from
-the `BatchDriverInterface`.
-
-Cache proxy MUST send the right data to the drivers, be it in the form of
-serialized `CacheItem` or directly as a `CacheItem` object, depending on the
-capabilities of the used driver.
-
-If the driver does not support serialization then the proxy should use the
-serialization function passed via ``` setSerializer() ``` method.
-
-The `CacheProxy` MUST be able to handle multiple cache drivers. A priority
-based system will dictate which driver order should be used when performing
-the operations on the caching drivers. Adding a new cache driver with the
-same priority as an existing driver must explicitly declare the intention
-of overwriting the existing driver else a `RuntimeException` MUST be risen
-in order to signal the failure of operation.
-
-2. Package
+2. Interfaces
 ----------
 
-The interfaces and classes described as well as relevant exception classes
-and a test suite to verify your implementation are provided as part of the
-[php-fig/Psr-cache](https://packagist.org/packages/php-fig/psr-cache) package.
-
-3. Interfaces
-----------
-
-### 3.1 ItemInterface
+### 2.1 ItemInterface
 
 ```php
 
@@ -134,28 +73,13 @@ namespace Psr\Cache;
  */
 interface ItemInterface
 {
-    /**
-     * Set the value of the key to store our value under
-     *
-     * @param string $cacheKey
-     *
-     * @return ItemInterface
-     */
-    public function setKey($cacheKey);
-
-    /**
-     * Get the key of the object
-     *
-     * @return string
-     */
-    public function getKey();
 
     /**
      * Set the value to be stored in the cache
      *
      * @param mixed $cacheValue
      *
-     * @return ItemInterface
+     * @return null
      */
     public function setValue($cacheValue);
 
@@ -166,194 +90,11 @@ interface ItemInterface
      */
     public function getValue();
 
-    /**
-     * Set the TTL value
-     *
-     * @param int $ttl
-     *
-     * @return ItemInterface
-     */
-    public function setTtl($ttl);
-
-    /**
-     * Get the TTL of the object
-     *
-     * @return int
-     */
-    public function getTtl();
-
-    /**
-     * Get the remaining time in seconds until the item will expire
-     * The implementation should save the expiry time in the item metadata on
-     * save event and then retrieve it from the object metadata and substract
-     * it from the current time
-     *
-     * *Note* certain delays can occur as the save event won't be able to
-     * provide actual save time of when the user called the save method and
-     * the real save time when the driver will save the item
-     *
-     * @return int
-     */
-    public function getRemainingTtl();
-
-    /**
-     * Set a metadata value
-     *
-     * @param string $key
-     * @param mixed $value
-     *
-     * @return ItemInterface
-     */
-    public function setMetadata($key, $value);
-
-    /**
-     * Do we have any metadata with the object
-     *
-     * @param string|null $key
-     *
-     * @return boolean
-     */
-    public function hasMetadata($key = null);
-
-    /**
-     * Get parameter/key from the metadata
-     *
-     * @param string|null $key
-     *
-     * @return mixed
-     */
-    public function getMetadata($key = null);
-
 }
 
 ```
 
-### 3.2 DriverInterface
-
-```php
-
-<?php
-
-namespace Psr\Cache;
-
-/**
- * Interface for cache drivers
- */
-interface DriverInterface
-{
-    /**
-     * Set data into cache.
-     *
-     * @param string $key      Entry id
-     * @param mixed  $value    Cache entry
-     * @param int    $lifeTime Life time of the cache entry
-     *
-     * @return boolean
-     */
-    public function set($key, $value, $lifeTime = 0);
-
-    /**
-     * Check if an entry exists in cache
-     *
-     * @param string $key Entry id
-     *
-     * @return boolean
-     */
-    public function exists($key);
-
-    /**
-     * Get an entry from the cache
-     *
-     * @param string $key Entry id
-     *
-     * @return mixed The cached data or null
-     */
-    public function get($key);
-
-    /**
-     * Removes a cache entry
-     *
-     * @param string $key Entry id
-     *
-     * @return boolean
-     */
-    public function remove($key);
-
-    /**
-     * If this driver has support for serialization or not
-     *
-     * @return boolean
-     */
-    public function hasSerializationSupport();
-
-}
-
-```
-
-### 3.3 BatchDriverInterface
-
-```php
-
-<?php
-
-namespace Psr\Cache;
-
-/**
- * Interface for cache drivers that can support multiple operations at once
- */
-interface BatchDriverInterface extends DriverInterface
-{
-
-    /**
-     * Stores multiple items in the cache at once.
-     *
-     * The items must be provided as an associative array.
-     *
-     * @param array $items
-     * @param int   $ttl
-     *
-     * @return boolean[]
-     */
-    public function setMultiple(array $items, $ttl = 0);
-
-    /**
-     * Fetches multiple items from the cache.
-     *
-     * The returned structure must be an associative array. If items were
-     * not found in the cache, they will be added as null values.
-     *
-     * @param array $keys
-     *
-     * @return array
-     */
-    public function getMultiple(array $keys);
-
-    /**
-     * Deletes multiple items from the cache at once.
-     *
-     * @param array $keys
-     *
-     * @return boolean[]
-     */
-    public function removeMultiple(array $keys);
-
-    /**
-     * Check for multiple items if they appear in the cache.
-     *
-     * All items must be returned as an array. And each must array value
-     * must either be set to true, or false.
-     *
-     * @param array $keys
-     *
-     * @return array
-     */
-    public function existsMultiple(array $keys);
-
-}
-
-```
-
-### 3.4 CacheProxyInterface
+### 2.2 CacheInterface
 
 ```php
 
@@ -362,64 +103,24 @@ interface BatchDriverInterface extends DriverInterface
 namespace Psr\Cache;
 
 use Psr\Cache\ItemInterface;
-use Psr\Cache\DriverInterface;
 
 /**
- * This is our cache proxy
+ * This is our cache driver
  */
-interface CacheProxyInterface
+interface CacheInterface
 {
 
     /**
-     * Add a new cache driver.
+     * Set default TTL value
      *
-     * The priority will dictate which driver order should be used when
-     * performing the operations on the caching drivers.
-     *
-     * If the $overwriteExisting is passed as true then the driver will
-     * overwrite the existing driver which has the same priority as the
-     * driver that's being added.
-     *
-     * @param DriverInterface $cacheDriver
-     * @param int             $priority
-     * @param boolean         $overwriteExisting
-     *
-     * @return CacheProxyInterface
-     *
-     @ throws RuntimeException When the driver already exists with same priority but no explicit overwrite was specified
+     * @param int $ttl
      */
-    public function addCacheDriver(DriverInterface $cacheDriver, $priority = 100, $overwriteExisting = false);
-
-    /**
-     * Set the custom serializer function which will be used when the
-     * cache driver does not support serialization
-     *
-     * @param callable $serializer
-     *
-     * @return CacheProxyInterface
-     */
-    public function setSerializer($serializer);
-
-    /**
-     * Get the default TTL of the instance in seconds
-     *
-     * @return int
-     */
-    public function getDefaultTtl();
-
-    /**
-     * Set the default TTL of the instance
-     *
-     * @param $defaultTtl
-     *
-     * @return CacheProxyInterface
-     */
-    public function setDefaultTtl($defaultTtl);
+    public function setDefaultTtl($ttl);
 
     /**
      * Get cache entry
      *
-     * @param string|ItemInterface $key
+     * @param string $key
      *
      * @return ItemInterface|null
      */
@@ -428,7 +129,7 @@ interface CacheProxyInterface
     /**
      * Check if a cache entry exists
      *
-     * @param string|ItemInterface $key
+     * @param string $key
      *
      * @return boolean
      */
@@ -437,55 +138,76 @@ interface CacheProxyInterface
     /**
      * Set a single cache entry
      *
-     * @param ItemInterface $cacheItem
+     * @param string   $key
+     * @param mixed    $value
+     * @param int|null $ttl
      *
      * @return boolean Result of the operation
      */
-    public function set(ItemInterface $cacheItem);
+    public function set($key, $value, $ttl = null);
 
     /**
      * Remove a single cache entry
      *
-     * @param string|ItemInterface $key
+     * @param string $key
      *
      * @return boolean Result of the operation
      */
     public function remove($key);
 
     /**
-     * Set multiple keys in the cache
-     * If $ttl is not passed then the default TTL for this driver will be used
+     * Get multiple entries the cache
      *
-     * @param string[]|ItemInterface[]|mixed[] $items
-     * @param null|int $ttl
-     */
-    public function setMultiple(array $items, $ttl = null);
-
-    /**
-     * Get multiple keys the cache
-     *
-     * @param string[]|ItemInterface[]|mixed[] $keys
+     * @param string[] $keys
      *
      * @return ItemInterface[]
      */
     public function getMultiple($keys);
 
     /**
-     * Remove multiple keys from the cache
+     * Check if multiple entries exists in the cache
      *
-     * @param string[]|ItemInterface[]|mixed[] $keys
-     */
-    public function removeMultiple($keys);
-
-    /**
-     * Check if multiple keys exists in the cache
-     *
-     * @param string[]|ItemInterface[]|mixed[] $keys
+     * @param string[] $keys
      *
      * @return boolean[]
      */
     public function existsMultiple($keys);
 
+    /**
+     * Set multiple entries in the cache
+     *
+     * @param ItemInterface[] $items
+     * @param null|int $ttl
+     */
+    public function setMultiple(array $items, $ttl = null);
+
+    /**
+     * Remove multiple entries from the cache
+     *
+     * @param string[] $keys
+     */
+    public function removeMultiple($keys);
+
 }
 
 ```
+
+
+3. Package
+----------
+
+The interfaces described as well as a test suite to verify your implementation
+are provided as part of the [php-fig/cache](https://packagist.org/packages/php-fig/psr-cache) package.
+
+4. Appendix
+----------
+
+### 4.1 Usage of CacheItem
+
+Since various cache systems / or drivers are not fully capable of storing all
+the nativ data types present in PHP as well as have a consistent return value
+in case the stored value wasn't found that would not conflict otherwise with
+the value stored by the user, the CacheItem approach was used.
+
+This helps implementations store any data type in the cache system then allows
+each implementation do deal with the mentioned shortcomings.
