@@ -1,19 +1,27 @@
 Common Extended Interfaces for Caching libraries
 ====================================
 
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
+interpreted as described in [RFC 2119][].
+
+The final implementations MAY be able to decorate the objects with more
+functionality that the one proposed but they MUST implement the indicated
+interfaces/functionality first.
+
+[RFC 2119]: http://tools.ietf.org/html/rfc2119
+
 1. Description
 -----------------
 
-### 1.1 Proposed extended implementation
+This documents adds more interfaces that caching libraries can implement in
+order to further enhance their functionality.
 
-This documents adds missing interfaces from the original cache proposal
-allowing for more functionality that originaly specified.
-
-In order to cover multiple levels of implementation, each additional
-functionality is described in a separate interface.
-
-2. Proposed extended implementation
+2. Specifications
 -----------------
+
+In order to cover multiple levels of functionality, each additional
+functionality is described as separate interface.
 
 ### 2.1 TaggableItemInterface
 
@@ -42,54 +50,44 @@ A lock can be defined as:
   item while it is locked.
 
 If the storage engine does not provide this functionality, then the
-```AdvancedCacheProxy``` MUST implement this using the available ```get```
-and ```set``` methods.
+implementation MUST provide emulation for it.
+
+The lock duration is specified in microseconds as it allows better user
+controlled granularity.
 
 ### 2.4 NamespacedCacheInterface
 
 This interface facilitate operations with namespaces if the driver has support
-for them.
+for them or wants to emulate such support.
+
+The getter method will retrieve the requested namespace items without children
+namespaces/items by default. The user MUST explicitly request those in order to
+retrieve them as doing so could potentially be a performance problem.
+
+The same applies to the removing method which will only delete the items in the
+specified namespace unless otherwise requested by user.
+
+The item returned by this interface must implement the ```NamespacedItemInterface```
 
 ### 2.5 TaggableCacheInterface
 
 This interface facilitate operations with tags if the driver has support for
-them.
+them or wants to emulate such support.
+
+By default, the tag matching will be done in ```all``` mode, which means that
+the retrieved items have at least all tags requested by the user. The retrieved
+items MAY contain other tags as well but MUST have all the tags requested by
+user. If the user wants to retrieve all items that match any of the requested
+tags then he MUST explicitely do so.
+
+The same applies to the removing method which will delete the items that match
+at least all the specified tags unless otherwise requested by user to delete
+all the items that match any tag.
 
 3. Interfaces
 ----------
 
-### 3.1 TaggableItemInterface
-
-```php
-
-<?php
-
-namespace Psr\Cache;
-
-/**
- * CacheItem with tag support
- */
-interface TaggableItemInterface extends ItemInterface
-{
-    /**
-     * Get the tags of an item
-     *
-     * @return string[]
-     */
-    public function getTags();
-
-    /**
-     * Set the tags of an item
-     *
-     * @param string[] $tags
-     */
-    public function setTags(array $tags);
-
-}
-
-```
-
-### 3.2 NamespacedItemInterface
+### 3.1 NamespacedItemInterface
 
 ```php
 
@@ -115,6 +113,37 @@ interface NamespacedItemInterface extends ItemInterface
      * @param string $namespace
      */
     public function setNamespace($namespace);
+
+}
+
+```
+
+### 3.2 TaggableItemInterface
+
+```php
+
+<?php
+
+namespace Psr\Cache;
+
+/**
+ * CacheItem with tag support
+ */
+interface TaggableItemInterface extends ItemInterface
+{
+    /**
+     * Get the tags of an item
+     *
+     * @return string[]
+     */
+    public function getTags();
+
+    /**
+     * Set the tags of an item
+     *
+     * @param string[] $tags
+     */
+    public function setTags(array $tags);
 
 }
 
@@ -195,7 +224,7 @@ interface NamespacedCacheInterface extends DriverInterface
      * @param string  $namespace
      * @param Boolean $includingChildren
      *
-     * @return ItemInterface[]
+     * @return NamespacedItemInterface[]
      */
     public function getByNamespace($namespace, $includingChildren = false);
 
@@ -231,7 +260,7 @@ interface TaggableCacheInterface extends DriverInterface
      *
      * @param string $tag Tag name
      *
-     * @return ItemInterface[]
+     * @return TaggableItemInterface[]
      */
     public function getByTag($tag);
 
@@ -243,9 +272,9 @@ interface TaggableCacheInterface extends DriverInterface
      * @param string[] $tags
      * @param Boolean  $mustHaveAll
      *
-     * @return ItemInterface[]
+     * @return TaggableItemInterface[]
      */
-    public function getByTags(array $tags, $mustHaveAll = true);
+    public function getByTags(array $tags = array(), $mustHaveAll = true);
 
     /**
      * Remove all the items that match the specified tag
@@ -264,7 +293,28 @@ interface TaggableCacheInterface extends DriverInterface
      *
      * @return Boolean[]
      */
-    public function removeByTags(array $tags, $mustHaveAll = true);
+    public function removeByTags(array $tags = array(), $mustHaveAll = true);
+
+    /**
+     * Returns the number of items that match the specified tag
+     *
+     * @param string $tag
+     *
+     * @return int
+     */
+    public function countByTag($tag);
+
+    /**
+     * Returns the number of items that match all the specified tags.
+     * If $mustHaveAll is set to false then this will return the number of items
+     * that match at least one of the specified tags
+     *
+     * @param string[] $tags
+     * @param Boolean  $mustHaveAll
+     *
+     * @return int
+     */
+    public function countByTags(array $tags = array(), $mustHaveAll = true);
 
 }
 
