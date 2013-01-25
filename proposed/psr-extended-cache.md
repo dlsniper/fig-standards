@@ -23,13 +23,13 @@ order to further enhance their functionality.
 In order to cover multiple levels of functionality, each additional
 functionality is described as separate interface.
 
-### 2.1 TaggableItemInterface
+### 2.1 TaggableCacheItemInterface
 
 This allows a use to tag a cache ```Item``` with additional metadata in order
 to facilitate various operations and usages such as: grouping items by labels,
 finding similar items based on labels, removing items based on said labels.
 
-### 2.2 NamespacedItemInterface
+### 2.2 NamespacedCacheItemInterface
 
 This allows grouping a cache ```Item``` via a tree-like structure.
 
@@ -67,7 +67,7 @@ retrieve them as doing so could potentially be a performance problem.
 The same applies to the removing method which will only delete the items in the
 specified namespace unless otherwise requested by user.
 
-The item returned by this interface must implement the ```NamespacedItemInterface```
+The item returned by this interface must implement the ```NamespacedCacheItemInterface```
 
 ### 2.5 TaggableCacheInterface
 
@@ -87,7 +87,7 @@ all the items that match any tag.
 3. Interfaces
 ----------
 
-### 3.1 NamespacedItemInterface
+### 3.1 NamespacedCacheItemInterface
 
 ```php
 
@@ -96,9 +96,9 @@ all the items that match any tag.
 namespace Psr\Cache;
 
 /**
- * CacheItem with tag support
+ * CacheItem with namespace support
  */
-interface NamespacedItemInterface extends ItemInterface
+interface NamespacedCacheItemInterface extends CacheItemInterface
 {
     /**
      * Get the namespace of the cache item
@@ -118,7 +118,7 @@ interface NamespacedItemInterface extends ItemInterface
 
 ```
 
-### 3.2 TaggableItemInterface
+### 3.2 TaggableCacheItemInterface
 
 ```php
 
@@ -129,7 +129,7 @@ namespace Psr\Cache;
 /**
  * CacheItem with tag support
  */
-interface TaggableItemInterface extends ItemInterface
+interface TaggableCacheItemInterface extends CacheItemInterface
 {
     /**
      * Get the tags of an item
@@ -224,7 +224,7 @@ interface NamespacedCacheInterface extends DriverInterface
      * @param string  $namespace
      * @param Boolean $includingChildren
      *
-     * @return NamespacedItemInterface[]
+     * @return NamespacedCacheItemInterface[]
      */
     public function getByNamespace($namespace, $includingChildren = false);
 
@@ -260,7 +260,7 @@ interface TaggableCacheInterface extends DriverInterface
      *
      * @param string $tag Tag name
      *
-     * @return TaggableItemInterface[]
+     * @return TaggableCacheItemInterface[]
      */
     public function getByTag($tag);
 
@@ -272,7 +272,7 @@ interface TaggableCacheInterface extends DriverInterface
      * @param string[] $tags
      * @param Boolean  $mustHaveAll
      *
-     * @return TaggableItemInterface[]
+     * @return TaggableCacheItemInterface[]
      */
     public function getByTags(array $tags = array(), $mustHaveAll = true);
 
